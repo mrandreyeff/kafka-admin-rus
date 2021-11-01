@@ -1,0 +1,11 @@
+---
+all:
+  hosts:
+    control:
+      node_ip: 172.22.22.101
+    server1:
+      node_ip: 172.22.22.121
+    server2:
+      node_ip: 172.22.22.122
+    server3:
+      node_ip: 172.22.22.123

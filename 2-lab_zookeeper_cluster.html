@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+  <title>Lab - Zookeeper кластер</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+
+
+  <xmp theme="superhero" style="display:none;" toc="true">
+      
+# Цель
+
+  Цель практики - ознакомиться созданием и эксплуатированием Zookeeper кластера.
+
+# Предварительные условия
+
+- Для данной практики необходимы 3 виртуальных машины `server1` , `server2` и `server3`
+
+# Установите зависимости
+
+В этой части Вы установите зависимости на виртуальные машины
+
+1. Подключитесь к серверу `server1`:
+ ```
+ vagrant ssh server1
+ ```
+
+2. Обновите кэш менеджера пакетов
+ ```
+ sudo apt update
+ ```
+
+3. Установите JRE
+ ```
+ sudo apt install -y default-jre
+ ```
+
+4. Проверьте, что java была успешно установлена
+ ```
+ java -version
+ ```
+Ожидаемый результат (версия и дата могут отличаться)
+ ```
+ openjdk version "11.0.11" 2021-04-20
+ OpenJDK Runtime Environment (build 11.0.11+9-Ubuntu-0ubuntu2.18.04)
+ OpenJDK 64-Bit Server VM (build 11.0.11+9-Ubuntu-0ubuntu2.18.04, mixed mode, sharing)
+ ```
+
+5. Добавьте Kafka `bin/` в переменную PATH в bashrc, чтобы в дальнейшем упростить вызов команд:
+ ```
+ sudo bash -c 'echo PATH=\$PATH:/opt/kafka_2.13-2.8.0/bin/:/opt/apache-zookeeper-3.7.0-bin/bin/ >> /etc/bash.bashrc'
+ ```
+
+6. Примените новые значения путём выовы команды (или перезапустите оболочку, что также подгрузит новые переменные из `/etc/bash.bashrc`):
+ ```
+ source /etc/bash.bashrc
+ ```
+
+7. Повторите шаги 1-6 для других двух серверов (server2 и server3).
+
+
+# Создайте кластер Zookeeper
+
+В этой части Вы познакомитесь с процессом создания кластера Zookeeper.
+
+1. Скачайте архив с бинарными файлами Zookeeper:
+ ```
+ wget https://downloads.apache.org/zookeeper/zookeeper-3.7.0/apache-zookeeper-3.7.0-bin.tar.gz
+ ```
+
+2. Распакуйте архив в директорию /opt:
+ ```
+ sudo tar -xzvf apache-zookeeper-3.7.0-bin.tar.gz -C /opt
+ ```
+
+3. Создайте пользователя zookeeper
+ ```
+ sudo useradd -m -s /bin/bash zookeeper
+ ```
+
+4. Создайте рабочую директорию для зукипера:
+ ```
+ sudo mkdir -p /var/lib/zookeeper
+ ```
+
+5. Установите уникальный идентификационный номер для зукипера. Создайте файл с соот/var/lib/zookeeper/myid. Значения ДОЛЖНЫ быть уникальными для каждого брокера внутри кластера, часто используются числа 1,2,3, ...:
+ ```
+ sudo bash -c "echo '1' > /var/lib/zookeeper/myid"
+ ```
+
+6. Создайте конфигурационный файл зукипера из шаблона:
+ ```
+ sudo cp -a /opt/apache-zookeeper-3.7.0-bin/conf/zoo_sample.cfg /opt/apache-zookeeper-3.7.0-bin/conf/zoo.cfg
+ sudo vim /opt/apache-zookeeper-3.7.0-bin/conf/zoo.cfg
+ ```
+ Далее добавьте/обновите следующий строки, сохраните изменения и выйдите:
+ ```
+ dataDir=/var/lib/zookeeper
+ 4lw.commands.whitelist=*
+ ```
+ Также добавьте соответствующие хосты в кластере, которые имеются на данный момент (по мере продвижения вперёд, раскомментируйте добавленные сервера):
+ ```
+ server.1=172.22.22.121:2888:3888
+ # server.2=172.22.22.122:2888:3888
+ # server.3=172.22.22.123:2888:3888
+ ```
+
+7. Поменяйте владельца директории зукипер:
+ ```
+ sudo chown -R zookeeper /opt/apache-zookeeper-3.7.0-bin/
+ sudo chown -R zookeeper /var/lib/zookeeper
+ ```
+
+8. Запустите сервис зукипера:
+ ```
+ sudo su - zookeeper
+ zkServer.sh start
+ ```
+
+9. Если ранее были запущены другие зукипер сервера, обновите их конфигурацию, чтобы список серверов соответствовал текущему количеству:
+ ```
+ vim /opt/apache-zookeeper-3.7.0-bin/conf/zoo.cfg
+    server.1=172.22.22.121:2888:3888
+    # server.2=172.22.22.122:2888:3888
+    # server.3=172.22.22.123:2888:3888
+ ```
+ Далее перезапустите соответствующие зукипер сервера по одному:
+ ```
+ zkServer.sh restart
+ ```
+
+10. Проверьте статус зукипера:
+ ```
+ zkServer.sh status
+ ```
+ Ожидаемый статус для ситуации, когда зукипер единственный в кластере:
+ ```
+ Mode: standalone
+ ```
+ В случае, когда кластер состоит из 2 и более серверов:
+ ```
+ Mode: follower
+ ```
+ или
+ ```
+ Mode: leader
+ ```
+
+11. Для проверки статуса и метрик зукипер-серверов полезно знать и использовать следующие команды, состоящие из 4 букв (4 letter words), например, `ruok`, `isro`, `stat`, `conf`, `mntr`. Их можно применять следующим образом:
+ ```
+ echo "ruok" | nc localhost 2181
+ ```
+ Полезно проверять также метрику количества синхронизированных зукипер-серверов:
+ ```
+ echo "mntr" | nc localhost 2181 | grep zk_synced
+ ```
+
+12. Вы настроили 1 из 3 серверов. Проделайте то же самое (шаги 1-12) с остальными 2 серверами (`server2` и `server3`), чтобы получить ансамбль зукипера.
+После окончания настройки всех 3 серверов, у лидера (т.е. на одном из 3 серверов) Вы увидете:
+ ```
+ echo "mntr" | nc localhost 2181 | grep zk_synced
+ zk_synced_followers     2
+ zk_synced_non_voting_followers  0
+ zk_synced_observers     0
+ ```
+
+
+# Работа с кластером зукипера
+
+В этой части Вы ознакомитесь с базовыми командами для работы внутри зукипера:
+
+1. Подключитесь к кластеру зукипер:
+ ```
+ zkCli.sh
+ ```
+2. Попробуйте применить различные команды:
+ - Выведите содержимое корневого каталога командой
+ ```
+ ls /
+ ```
+ - Узнайте содержимое z-узла (znode) `/zookeeper/config`:
+ ```
+ get /zookeeper/config
+ ```
+ - Cоздайте новый узел с содержимым `1234`:
+ ```
+ create /mynode 1234
+ ```
+ - Проверьте содержимое, применив на нескольких узлах:
+ ```
+ get /mynode
+ ```
+ - Перезапишите содержимое узла и снова проверьте значение на нескольких узлах:
+ ``` 
+ set /mynode aaa
+ get /mynode
+ ```
+ - Посмотрите информацию об узле:
+ ```
+ stat /mynode
+ ```
+
+3. Работа с эфемерными узлами
+ - Создайте эфемерный узел (флаг `-e`):
+ ```
+ create -e /mysecondnode "ephemeral-data"
+ ```
+ - Проверьте его наличие и содержимое с нескольких серверов:
+ ```
+ ls /
+ get /mysecondnode
+ ```
+ - Отключитесь клиентом, создавшим его. Через несколько секунд проверьте наличие эфемерного узла `/mysecondnode` и первого обычного узла `/mynode`
+
+4. Использование watch
+ - Получите значение znode `/mynode` c флагом `-w` (watch):
+ ```
+ get -w /mynode
+ ```
+ - Не закрывайте текущую сессию. Откройте другое и поменяйте значение znode `/mynode`, например:
+ ```
+ set /mynode zzz
+ ```
+ В сессии, в которой вызывалась команда `get -w /mynode` должно появится оповещение:
+ ```
+ WATCHER::
+ WatchedEvent state:SyncConnected type:NodeDataChanged path:/mynode
+ ```
+5. Для удаления znode используйте команду `delete`, например:
+ ```
+ delete /mynode
+ ```
+Note: Более ранние версии зукипера использовали команду `rm`.
+
+# Дополнительные задания:
+
+1. Найдите и попробуйте другие команды, состоящие из 4 букв
+
+2. Попробуйте другие команды внутри `zkCli.sh`
+
+3. Посмотрите официальную документацию зукипера, чтобы узнать больше о его устройстве: https://zookeeper.apache.org/doc/r3.7.0/zookeeperStarted.html
+
+Copyright©Sergejs Andrejevs
+  </xmp>
+  <script src="strapdown/strapdown.min.js"></script>
+</html>
+<!--
+Local Variables:
+mode: markdown
+End:
+->
