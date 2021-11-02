@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <title>Lab - Высокодоступный Кафка Кластер</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+
+
+  <xmp theme="superhero" style="display:none;" toc="true">
+      
+# Цель
+
+  Цель практики - ознакомиться с созданием Кафка кластера.
+ 
+# Предварительные Условия
+ 
+ - Для данной практики необходимы 3 виртуальных машины `server1` , `server2` и `server3`, а также зукипер кластер (например, созданный в рамках предыдущей практики)
+
+
+# Создание Высокодоступного Кафка Кластера
+
+В этой части практик Вы ознакомитесь с процессом создания высокодоступного кластера Кафки.
+
+1. Для начала необходим кластер зукипера, используемый для обнаружения и координации брокеров кластера.
+
+2. Скачайте архив с бинарниками кафки:
+ ```
+ wget https://archive.apache.org/dist/kafka/2.8.0/kafka_2.13-2.8.0.tgz
+ ```
+
+3. Разархивируйте его:
+ ```
+ sudo tar -xzvf kafka_2.13-2.8.0.tgz -C /opt
+ ```
+
+4. Создайте пользователя, и смените владельца директории кафки:
+ ```
+ sudo useradd -m -s /bin/bash kafka
+ sudo chown kafka -R /opt/kafka_2.13-2.8.0/
+ ```
+
+5. Отредактируйте главный конфигурационный файл кафка брокера - установите уникальный (внутри кластера) идентификационное имя брокера, а также установите адрес координационного зукипер кластера, указав его сервера:
+ ```
+ sudo vim /opt/kafka_2.13-2.8.0/config/server.properties
+    broker.id=1
+    zookeeper.connect=172.22.22.121:2181,172.22.22.122:2181,172.22.22.123:2181
+ ```
+
+6. Обратите внимание и отредактируйте конфигурацию, относящуюся к внутренним темам кафка кластера:
+ ```
+ sudo vim /opt/kafka_2.13-2.8.0/config/server.properties
+    offsets.topic.replication.factor=3
+    transaction.state.log.replication.factor=3
+    transaction.state.log.min.isr=2
+ ```
+
+7. Запустите кафка кластер
+ ```
+ sudo su - kafka
+ kafka-server-start.sh -daemon /opt/kafka_2.13-2.8.0/config/server.properties
+ ```
+
+8. Повторите шаги 2-7 для других двух серверов.
+
+9. Создайте тему с фактором репликации 3. Проверьте её конфигурацию:
+ ```
+ kafka-topics.sh            --bootstrap-server localhost:9092 --topic hello-kafka --create --replication-factor 3
+ kafka-topics.sh            --bootstrap-server localhost:9092 --topic hello-kafka --describe
+ ```
+
+10. Запишите в неё сообщения, а затем прочитайте:
+ ```
+ kafka-console-producer.sh  --bootstrap-server localhost:9092 --topic hello-kafka
+ kafka-console-consumer.sh  --bootstrap-server localhost:9092 --topic hello-kafka
+ ```
+
+11. Остановите один из брокеров и повторите процедуру шагов 9-10. Какое количество ISR? Осталась ли тема доступной? 
+Примечание: имейте ввиду, что в качестве сервера подключения `--bootstrap-server` нужно использовать работающий сервер, а не остановленный. 
+ ```
+ /opt/kafka_2.13-2.8.0/bin/kafka-server-stop.sh
+ kafka-topics.sh            --bootstrap-server localhost:9092 --topic hello-kafka --create --replication-factor 3
+ kafka-topics.sh            --bootstrap-server localhost:9092 --topic hello-kafka --describe
+ kafka-console-producer.sh  --bootstrap-server localhost:9092 --topic hello-kafka
+ kafka-console-consumer.sh  --bootstrap-server localhost:9092 --topic hello-kafka
+ ```
+
+# Дополнительные задания:
+
+1. Создайте другие темы с разными факторами репликации. Проверьте ISR, а также запишите и прочитайте сообщения в/из кластера при отключенном брокере.
+
+2. Прочитайте документацию о доступных конфигурациях в `server.properties`.
+
+Copyright©Sergejs Andrejevs
+  </xmp>
+  <script src="strapdown/strapdown.min.js"></script>
+</html>
+<!--
+Local Variables:
+mode: markdown
+End:
+->

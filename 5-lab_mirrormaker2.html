@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+  <title>Lab - Mirrormaker 2</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+
+
+  <xmp theme="superhero" style="display:none;" toc="true">
+      
+# Цель
+
+  Цель практики - познакомиться с Kafka Connect инструментами на примере MirrorMaker v2.
+
+# Предварительные Условия
+
+- Нам нужно 2+ виртуальных машины для этой практики:
+   - Одна виртуальная машина (`control`) будет выполнять роль standalone кафка кластера. Этот сервер образует кластер А.
+   - 1-3 виртуальных машины ( `server1` , `server2` и `server3`). Этот сервер или сервера - образуют кластер Б.
+
+
+# Standalone Кафка Кластер
+
+Убедитесь, что у Вас запущено 2 кластера - в это случае можете пропустить данный раздел.
+Если какой-либо кластер отсутствует, создайте кластер состоящий из 1 брокера:
+
+1. Запустите standalone сервер зукипера:
+ ```
+ sudo /opt/kafka_2.13-2.8.0/bin/zookeeper-server-start.sh config/zookeeper.properties
+ ```
+
+2. Запустите standalone кафка брокер:
+ ```
+ sudo /opt/kafka_2.13-2.8.0/bin/kafka-server-start.sh config/server.properties
+ ```
+
+# Настройка Миррормейкер 2.
+
+1. Выберите кластер, на котором Вы желаете запустить Миррормейкер, например, `server1`:
+ ```
+ ssh server1
+ ```
+
+2. Определите конфигурацию:
+ ```
+ sudo vim /opt/kafka_2.13-2.8.0/config/mm2.properties
+ ```
+ Установите следующие значения:
+ ```
+ name=A->B
+ clusters=clustera, clusterb
+ 
+ clustera.bootstrap.servers=control1:9092
+ clustera.cluster.alias=myclustera
+ clusterb.bootstrap.servers=server1:9092,server2:9092,server3:9092
+ clusterb.cluster.alias=myclusterb
+ 
+ clustera->clusterb.enabled=true
+ clustera->clusterb.topics=.*
+ clustera->clusterb.groups=.*
+ clustera->clusterb.sync.group.offsets.enabled=true
+ clustera->clusterb.sync.topic.configs.enabled=true
+ clustera->clusterb.emit.checkpoints.enabled=true
+ clustera->clusterb.emit.checkpoints.interval.seconds=5
+ clustera->clusterb.sync.group.offsets.interval.seconds=5
+ clustera->clusterb.replication.factor=3
+ ```
+
+3. Для запуска репликации выполните команду:
+ ```
+ connect-mirror-maker.sh mm2.prop
+ ```
+
+# Проверьте работу репликации
+
+1. Посмотрите список тем на каждом кластере:
+ ```
+ kafka-topics.sh --bootstrap-server control:9092 --list
+ kafka-topics.sh --bootstrap-server server1:9092 --list
+ ```
+ Помимо тем, которые Вы реплицируете, на кластерах появились и другие, вспомогательные (внутренние) темы.
+
+2. Произведите запись в один из реплицируемых тем в кластер-источник:
+ ```
+ kafka-console-producer.sh  --bootstrap-server control:9092 --topic my-kafka-topic
+ ```
+
+3. Прочитайте эту же тему на кластере отправителе
+ ```
+ kafka-console-consumer.sh --bootstrap-server control:9092 --topic my-kafka-topic --group my-consumer-group1
+ ```
+
+4. Прочитайте эту же тему на кластере-получателе, указав другую группу потребителей:
+ ```
+ kafka-console-consumer.sh --bootstrap-server server1:9092 --topic my-kafka-topic --group my-consumer-group2
+ ```
+
+5. Прекратите потребление на кластере источнике для группы `my-consumer-group1`. Произведите несколько сообщений. Через 10 секунд прочитайте сообщения на кластере-получателе, используя группу `my-consumer-group1`:
+ ```
+ kafka-console-consumer.sh --bootstrap-server server1:9092 --topic my-kafka-topic --group my-consumer-group1
+ ```
+ Обратите внимание, что поскольку мы реплицируем и группы потребителей, то чтение началось с последнего прочитанного сообщения на кластере-отправителе.
+
+
+# Отказоустойчивый Кластер Миррормейкера
+
+1. Выберите другой сервер (наприер, `server2`) и повторите шаги с настройкой Миррормейкера из соответствующего раздела, сохраняя ту же конфигурацию.
+
+2. Проверьте, что они слаженно работают и не производят сообщения дважды.
+
+3. Остановите любой миррормейке и проверьте, что репликация продолжается.
+
+# Дополнительные задания:
+
+1. Настройте репликацию в обратную сторону.
+
+2. Проверьте отсутствие зацикленности, т.е. сообщение, отправленное из А в В не будет отправлено обратно из В в А в ту же тему.
+
+Copyright©Sergejs Andrejevs
+  </xmp>
+  <script src="strapdown/strapdown.min.js"></script>
+</html>
+<!--
+Local Variables:
+mode: markdown
+End:
+->

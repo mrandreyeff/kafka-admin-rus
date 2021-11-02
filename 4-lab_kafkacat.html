@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <title>Lab - kcat (Kafkacat)</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+
+
+  <xmp theme="superhero" style="display:none;" toc="true">
+      
+# Цель
+
+  Цель практики - ознакомиться с утилитой kcat (ранее: kafkacat).
+   
+# Предварительные Условия
+   
+ - Для данной практики необходима 1 виртуальная машина и работающий кафка кластер (standalone или состоящий из нескольких брокеров)
+  
+
+# Установите kafkacat
+
+1. Запустите следующую команду:
+ ```
+ sudo apt-get install -y kafkacat
+ ```
+
+# Ознакомьтесь с kafkacat
+
+В Kafkacat есть 4 режима работы: 
+-C - Consume - Потребление сообщений
+-P - Produce - Производство сообщений
+-L - Metadata List - Запрос метаданных
+-Q - Query - Запросы к данным
+
+1. Получите список метаданных тем:
+ ```
+ kafkacat -L -b server1:9092
+ ```
+
+2. Произведите данные в тему `my-first-topic`. Укажите флаг `-P` для производства, `-b` и следующий за ним список брокеров, а также `-t` и следующее за ним название темы:
+ ```
+ kafkacat -P -b server1:9092 -t my-first-topic
+ ```
+
+3. Потребите сообщения из темы `my-first-topic`. Укажите флаг `-C` для потребления (опционально, т.к. он является значением по умолчанию), `-b`  и следующий за ним список брокеров, а также `-t` и следующее за ним название темы:
+ ```
+ kafkacat -b server1:9092 -t my-first-topic
+ ```
+
+4. Флаг `-e` - выход после успешного получения последнего сообщения:
+ ```
+ kafkacat -b server1:9092 -t my-first-topic -e
+ ```
+
+5. Прочтите сообщения из топика и выведите их отформатировав, включив в выход метку времени, смещения, название темы, номер партиции, ключ и тд.:
+ ```
+ kafkacat -b 127.0.0.1:9092 -t my-first-topic -f "Tpc: %t \t- Prt: %p \t- Offset: %o \t- TS: %T \t- Key: %k \t- %s\n"
+ ```
+ Пример вывода:
+ ```
+ % Auto-selecting Consumer mode (use -P or -C to override)
+ Tpc: my-first-topic 	- Prt: 0 	- Offset: 0 	- TS: 1620120072684 	- Key:  	- hello
+ Tpc: my-first-topic 	- Prt: 0 	- Offset: 1 	- TS: 1620120075557 	- Key:  	- world
+ Tpc: my-first-topic 	- Prt: 0 	- Offset: 3 	- TS: 1620120137000 	- Key:  	- wdfawe
+ Tpc: my-first-topic 	- Prt: 0 	- Offset: 4 	- TS: 1620120150047 	- Key:  	- hello
+ Tpc: my-first-topic 	- Prt: 0 	- Offset: 5 	- TS: 1620120151561 	- Key:  	- world
+ Tpc: my-first-topic 	- Prt: 0 	- Offset: 6 	- TS: 1620120416457 	- Key:  	- 123r23
+ % Reached end of topic my-first-topic [0] at offset 7
+ ```
+
+6. Получите смещщение по отметке времени:
+ ```
+ kafkacat -Q -b 127.0.0.1:9092 -t my-first-topic:0:1620120136000
+ ```
+ Пример вывода:
+ ```
+ my-first-topic [0] offset 3
+ ```
+
+# Дополнительные задания:
+
+1. Отправьте запись в топик, не имеющую полезной нагрузки (NULL). Потребите эту запись из топика. Видите ли разницу между значением NULL и пустой строкой `""`?
+
+2. Проверьте последнюю версию kcat в репозитории, в частности опцию с заголовками: https://github.com/edenhill/kafkacat/tree/master
+
+Copyright©Sergejs Andrejevs
+  </xmp>
+  <script src="strapdown/strapdown.min.js"></script>
+</html>
+<!--
+Local Variables:
+mode: markdown
+End:
+->

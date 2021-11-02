@@ -75,13 +75,13 @@
 3. Запустите standalone Zookeeper Server:
  ```
  cd /opt/kafka_2.13-2.8.0/
- nohup sudo /opt/kafka_2.13-2.8.0/bin/zookeeper-server-start.sh config/zookeeper.properties &
+ sudo /opt/kafka_2.13-2.8.0/bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
  ```
 
 4. Запустите Kafka broker
  ```
  cd /opt/kafka_2.13-2.8.0/
- nohup sudo /opt/kafka_2.13-2.8.0/bin/kafka-server-start.sh config/server.properties &
+ sudo /opt/kafka_2.13-2.8.0/bin/kafka-server-start.sh -daemon config/server.properties
  ```
 
 # Kafka Command Line Tools

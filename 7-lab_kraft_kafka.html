@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <title>Lab - Высокодоступный Кафка Кластер без Зукипера</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+
+
+  <xmp theme="superhero" style="display:none;" toc="true">
+      
+# Цель
+
+  Цель данной практики - ознакомиться с созданием высокодоступного кафка кластера при использовании подхода, введённого в 2.8, который не использует зукипер.
+  Важно: на данный момент этот подход не рекомендуется для продукционных кластеров, в том числе и в версии Кафка 3.0.
+
+# Предварительные Условия
+
+ Нам понадобятся 3 виртуальных сервера `server1` , `server2` and `server3`.
+
+# Установите Зависимости
+
+В этой части Вам нужно будет установить зависимости для Кафки. Вы можете пропустить этот раздел, если они были установлены ранее
+
+1. Подключитесь к `server1`:
+ ```
+ ssh server1
+ ```
+
+2. Установите JRE:
+ ```
+ sudo apt-get install -y default-jre
+ ```
+
+3. Проверьте что java успешно установлена:
+ ```
+ java -version
+ ```
+ The expected output shall look as follows (version/date may differ)
+ ```
+ openjdk version "11.0.11" 2021-04-20
+ OpenJDK Runtime Environment (build 11.0.11+9-Ubuntu-0ubuntu2.18.04)
+ OpenJDK 64-Bit Server VM (build 11.0.11+9-Ubuntu-0ubuntu2.18.04, mixed mode, sharing)
+ ```
+
+4. Добавте путь к бинарным файлам Кафки в bashrc и примените их:
+ ```
+ sudo bash -c 'echo PATH=\$PATH:/opt/kafka_2.13-2.8.0/bin/ >> /etc/bash.bashrc'
+ source /etc/bash.bashrc
+ ```
+
+5. Загрузите архив Кафки:
+ ```
+ wget https://archive.apache.org/dist/kafka/2.8.0/kafka_2.13-2.8.0.tgz
+ ```
+
+6. Разархивируйте:
+ ```
+ sudo tar -xzvf kafka_2.13-2.8.0.tgz -C /opt
+ ```
+
+7. Создайте пользователя и поменяйте права для директории:
+ ```
+ sudo useradd -m -s /bin/bash kafka
+ sudo chown kafka -R /opt/kafka_2.13-2.8.0/
+ ```
+
+8. Повторите шаги 1-7 для двух других серверов (server2 и server3).
+
+
+# Настройка Брокеров Кафка Кластера
+
+1. Переключитесь на пользователя Кафка:
+ ```
+ sudo su - kafka
+ ```
+
+2. Отредактируйте конфигурационный файл /opt/kafka_2.13-2.8.0/config/kraft/server.properties (обратите особое внимание, что файл находится по другому пути. Как и ранее, ID брокера должно быть уникальным:
+ ```
+ node.id=1
+ controller.quorum.voters=1@server1:9093,2@server2:9093,3@server3:9093
+ advertised.listeners=PLAINTEXT://server1:9092
+ ```
+
+3. Проверьте и отредактируйте конфигураци внутренних топиков:
+ ```
+ offsets.topic.replication.factor=3
+ transaction.state.log.replication.factor=3
+ transaction.state.log.min.isr=3
+ ```
+
+4. Сгенерируйте уникальный идентификационный номер кластера (Cluster ID), который будет одинаковым для всех брокеров. Если Вы настраиваете server2 и server3, то данную команду запускать не нужно:
+ ```
+ kafka-storage.sh random-uuid
+ ```
+ Вы получите случайный uuid, который далее будет использоваться под названием `your_cluster_uuid` на всех брокерах.
+
+5. Отформатируйте хранилище кафка кластера:
+ ```
+ kafka-storage.sh format -t your_cluster_uuid -c /opt/kafka_2.13-2.8.0/config/kraft/server.properties
+ ```
+ Ожидаемый выход:
+ ```
+ Formatting /tmp/kraft-combined-logs
+ ```
+
+6. Запустите кафка брокер, например:
+ ```
+ kafka-server-start.sh -daemon /opt/kafka_2.13-2.8.0/config/kraft/server.properties
+ ```
+
+7. Повторите шаги для двух остальных брокеров (server2 и server3)
+
+# Проверьте работоспособность кластера
+
+1. Создайте тему с фактором репликации 3.
+
+2. Запишите что-нибудь в эту тему
+
+3. Прочитайте из этой темы
+
+Copyright©Sergejs Andrejevs
+  </xmp>
+  <script src="strapdown/strapdown.min.js"></script>
+</html>
+<!--
+Local Variables:
+mode: markdown
+End:
+->
