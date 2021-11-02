@@ -187,11 +187,63 @@
  kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic my-first-kafka-topic --group my-first-consumer-group
  ```
 
+11. Создайте тему с несколькими партициями и запишите данные в тему, используя ключ. Для наглядности попробуйте использовать один и тот же ключ. В данном примере сообщения подаются в формате "ключ|сообщение":
+ ```
+ kafka-topics.sh --bootstrap-server localhost:9092 --create --topic keyed --partitions 5
+ kafka-console-producer.sh --broker-list localhost:9092 --topic keyed --request-required-acks all --property parse.key=true --property key.separator="|"
+    123|Kafka is awesome
+    123|Message one
+    123|Another message
+    123|Lets send some more
+    ...
+ ```
+ Посмотрите на распределение сообщений по партициям:
+ ```
+ du -sh /tmp/kafka-logs/keyed-*/*.log
+ ```
+
+# Использование Python для Публикации и Потребления Сообщений
+
+Примечание: существуют также другие библиотеки для Python, например, `confluent_kafka`, `kafka-python` и другие. Для других языков программирования может быть также несколько библиотек (а может и не быть вовсе, для этого случая можно воспользоваться Kafka Rest Proxy)
+
+1. Установите pip:
+ ```
+ sudo apt-get install -y python3-pip
+ ```
+
+2. Установите библиотеку для работы с кафкой:
+ ```
+ pip3 install pykafka
+ ```
+
+3. Запустите python3 в интерактивном режиме, либо примените скрипт для публикации и чтения сообщений:
+ ```
+ from pykafka import KafkaClient
+  
+ client = KafkaClient(hosts='control:9092')
+  
+ topic = client.topics["topic-for-python"]
+  
+ # Запишите сообщения в тему
+ with topic.get_sync_producer() as producer:
+     producer.produce(b'Hello World')
+     producer.produce(b'Python and Kafka are great!')
+  
+ # Создайте потребителя consumer-group-for-python и прочитайте все сообщения из темы
+ consumer = topic.get_simple_consumer('consumer-group-for-python')
+ for message in consumer:
+     if message is not None:
+         print('{} {}'.format(message.offset, message.value))
+ ```
+ Больше деталей можно найти здесь: https://pykafka.readthedocs.io/en/latest/
+
 # Дополнительные задания:
 
 1. Попробуйте другие опции для изменения смещения у группа потребителей, например, `--to-earliest`, `--to-latest`, `--shift-by`, `--by-duration`.
 
 2. Произведите экспорт смещений в файл, отредактируйте смещения и удалите смещения для какой-либо группы, далее примените изменения из файла.
+
+3. Попробуйте другие
 
 Copyright©Sergejs Andrejevs
   </xmp>
