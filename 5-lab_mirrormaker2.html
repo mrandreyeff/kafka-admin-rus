@@ -25,18 +25,8 @@
 
 # Standalone Кафка Кластер
 
-Убедитесь, что у Вас запущено 2 кластера - в это случае можете пропустить данный раздел.
-Если какой-либо кластер отсутствует, создайте кластер состоящий из 1 брокера:
-
-1. Запустите standalone сервер зукипера:
- ```
- sudo /opt/kafka_2.13-2.8.0/bin/zookeeper-server-start.sh config/zookeeper.properties
- ```
-
-2. Запустите standalone кафка брокер:
- ```
- sudo /opt/kafka_2.13-2.8.0/bin/kafka-server-start.sh config/server.properties
- ```
+Убедитесь, что у Вас запущено 2 кластера.
+Если какой-либо кластер отсутствует, можете воспользоваться Практикой 1 и создать кластер из 1 брокера.
 
 # Настройка Миррормейкер 2.
 
@@ -47,18 +37,25 @@
 
 2. Определите конфигурацию:
  ```
- sudo vim /opt/kafka_2.13-2.8.0/config/mm2.properties
+ vim mm2.properties
  ```
- Установите следующие значения:
+ Установите следующие значения. Обратите внимание, что все темы будут созданы с заданным фактором репликации - измените его на соответствующий при необходимости (если второй кластер состоит из 1 сервера):
  ```
  name=A->B
  clusters=clustera, clusterb
  
- clustera.bootstrap.servers=control1:9092
- clustera.cluster.alias=myclustera
- clusterb.bootstrap.servers=server1:9092,server2:9092,server3:9092
- clusterb.cluster.alias=myclusterb
+ # Cluster A configuration properties
+ clustera.bootstrap.servers=control:9092
+ clustera.replication.factor=1
+ offset.storage.replication.factor=1
+ mm2-offsets.clustera.internal.replication.factor=1
+ clustera.config.storage.replication.factor=1
+ clustera.status.storage.replication.factor=1
  
+ # Cluster B configuration properties
+ clusterb.bootstrap.servers=server1:9092,server2:9092,server3:9092
+ 
+ # Mirroring configuration properties
  clustera->clusterb.enabled=true
  clustera->clusterb.topics=.*
  clustera->clusterb.groups=.*
@@ -67,12 +64,14 @@
  clustera->clusterb.emit.checkpoints.enabled=true
  clustera->clusterb.emit.checkpoints.interval.seconds=5
  clustera->clusterb.sync.group.offsets.interval.seconds=5
- clustera->clusterb.replication.factor=3
+ clustera->clusterb.refresh.topics.interval.second=15
+ clustera->clusterb.refresh.groups.interval.seconds=15
  ```
+ Другие конфигурации можно найти здесь: https://kafka.apache.org/documentation/#georeplication-flow-configure
 
 3. Для запуска репликации выполните команду:
  ```
- connect-mirror-maker.sh mm2.prop
+ connect-mirror-maker.sh mm2.properties
  ```
 
 # Проверьте работу репликации
@@ -91,17 +90,24 @@
 
 3. Прочитайте эту же тему на кластере отправителе
  ```
- kafka-console-consumer.sh --bootstrap-server control:9092 --topic my-kafka-topic --group my-consumer-group1
+ kafka-console-consumer.sh --bootstrap-server control:9092 --topic my-kafka-topic --group my-consumer-group1 --from-beginning
  ```
 
-4. Прочитайте эту же тему на кластере-получателе, указав другую группу потребителей:
+4. Подождите на кластере-получателе появится тема и группа потребителей:
  ```
- kafka-console-consumer.sh --bootstrap-server server1:9092 --topic my-kafka-topic --group my-consumer-group2
+ kafka-topics.sh --bootstrap-server server1:9092 --list
+ kafka-consumer-groups.sh --bootstrap-server server1:9092 --list
+ ```
+ Если в течении 30 секунд они не появились, перезапустите миррормейкер - это инициирует перепрочтение списка тем и групп потребителей.
+
+5. Прочитайте эту же тему на кластере-получателе, указав другую группу потребителей:
+ ```
+ kafka-console-consumer.sh --bootstrap-server server1:9092 --topic clustera.my-kafka-topic --group my-consumer-group2 --from-beginning
  ```
 
-5. Прекратите потребление на кластере источнике для группы `my-consumer-group1`. Произведите несколько сообщений. Через 10 секунд прочитайте сообщения на кластере-получателе, используя группу `my-consumer-group1`:
+6. Прекратите потребление на кластере источнике для группы `my-consumer-group1`. Произведите несколько сообщений. Через 10 секунд прочитайте сообщения на кластере-получателе, используя группу `my-consumer-group1`:
  ```
- kafka-console-consumer.sh --bootstrap-server server1:9092 --topic my-kafka-topic --group my-consumer-group1
+ kafka-console-consumer.sh --bootstrap-server server1:9092 --topic clustera.my-kafka-topic --group my-consumer-group1
  ```
  Обратите внимание, что поскольку мы реплицируем и группы потребителей, то чтение началось с последнего прочитанного сообщения на кластере-отправителе.
 
@@ -116,7 +122,7 @@
 
 # Дополнительные задания:
 
-1. Настройте репликацию в обратную сторону.
+1. Настройте репликацию в обратную сторону. Почему нужно поменять на `clusterb->clustera.replication.factor=1`
 
 2. Проверьте отсутствие зацикленности, т.е. сообщение, отправленное из А в В не будет отправлено обратно из В в А в ту же тему.
 

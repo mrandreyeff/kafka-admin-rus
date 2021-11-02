@@ -82,8 +82,6 @@
 Примечание: имейте ввиду, что в качестве сервера подключения `--bootstrap-server` нужно использовать работающий сервер, а не остановленный. 
  ```
  /opt/kafka_2.13-2.8.0/bin/kafka-server-stop.sh
- kafka-topics.sh            --bootstrap-server localhost:9092 --topic hello-kafka --create --replication-factor 3
- kafka-topics.sh            --bootstrap-server localhost:9092 --topic hello-kafka --describe
  kafka-console-producer.sh  --bootstrap-server localhost:9092 --topic hello-kafka
  kafka-console-consumer.sh  --bootstrap-server localhost:9092 --topic hello-kafka
  ```
