@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+  <title>Lab - Настройка и Эксплуатация Кафка Кластера</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="strapdown/themes/Dark Mode.min.css">
+  <link rel="stylesheet" href="strapdown/themes/Light Mode.min.css">
+  <link rel="stylesheet" href="css/style.css">
+
+
+  <xmp theme="superhero" style="display:none;" toc="true">
+      
+# Цель
+
+  Цель практики - более углублённо погрузиться в настройку и эксплуатацию Кафка кластера.
+ 
+# Предварительные Условия
+ 
+ - Для данной практики необходимы 3 виртуальных машины `server1` , `server2` и `server3`, на которых запущен кафка кластер.
+
+
+# Изменение Расположения Реплик и Их Количества
+
+В данной части мы научимся использовать `kafka-reassign-partitions.sh`. Это позволит производить такие манипуляции как изменение количества реплик партиции, перемещение партиций с одного брокера на другой, а также между дисками
+
+1. Создайте тему, которую мы захотим изменить, а также запишите в неё важные данные:
+ ```
+ kafka-topics.sh --bootstrap-server localhost:9092 --create --topic topic-with-rf3 --replication-factor 2 --partitions 2
+ kafka-console-producer.sh --bootstrap-server localhost:9092 --topic topic-with-rf3
+  > This is very important data used by applications in realtime
+  > It cannot be removed
+ ```
+
+2. Убедитесь, что данные в теме:
+ ```
+ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic topic-with-rf3 --from-beginning
+ ```
+
+3. Мы осознали, что указали неверный фактор репликации слишком поздно (либо изменились бизнес-требования) и нужно исправить ситуацию. Создайте файл:
+ ```
+ vim topics-to-change.json
+ ```
+ со следующим содержимым:
+ ```
+ {"topics":  [
+     {"topic": "topic-with-rf3"}
+ ],
+  "version":1
+ }
+ ```
+
+4. Используя созданный ранее файл, сгенерируйте план перераспределения партиций, при этом указав те ID брокеров, которые есть у вас:
+ ```
+ kafka-reassign-partitions.sh --bootstrap-server 127.0.0.1:9092 --topics-to-move-json-file topics-to-change.json \
+    --broker-list 1,2,3 --generate > current_and_proposed.json
+ ```
+5. Возьмите текущий или предлагаемый план и отредактируйте его таким образом, чтобы в нём было необходимое количество реплик, в нашем случае 3. Также необходимо поменять log_dirs соответствующим образом (либо удалить, т.к. это необязательный параметр).
+ ```
+ tail -n 1 current_and_proposed.json > topics-reassignment-plan.json
+ vim topics-reassignment-plan.json
+ ```
+
+6. Чтобы посмотреть предполагаемые изменения, запустите команду с флагом `--verify`:
+ ```
+ kafka-reassign-partitions.sh --bootstrap-server 127.0.0.1:9092 --reassignment-json-file topics-reassignment-plan.json --throttle 50000000 --replica-alter-log-dirs-throttle 50000000 --verify
+ ```
+
+7. Для применения изменений запустите команду с флагом `--execute`. Важно: для продукционных сред и крупных партиций обязательно используйте ограничение в скорости передачи.
+ ```
+ kafka-reassign-partitions.sh --bootstrap-server 127.0.0.1:9092 --reassignment-json-file topics-reassignment-plan.json --throttle 50000000 --replica-alter-log-dirs-throttle 50000000 --execute  > rollback-file.log
+ ```
+
+8. Для проверки статуса перемещения используйте упомянутый ранее флаг `--verify`:
+ ```
+ kafka-reassign-partitions.sh --bootstrap-server 127.0.0.1:9092 --reassignment-json-file topics-reassignment-plan.json --verify
+ ```
+
+9. После завершения проверьте описание темы и что все данные находятся на месте:
+ ```
+ kafka-topics.sh --bootstrap-server localhost:9092 --topic topic-with-rf3 --describe
+ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic topic-with-rf3 --from-beginning
+ ```
+
+# Изменение Конфигурации Тем
+
+1. Вы также узнали, что тема `topic-with-rf3` также должна хранить данные лишь за последние 5 дней. Для этого добавим параметр `retention.ms=432000000`:
+ ```
+ kafka-configs.sh --bootstrap-server localhost:9092 --entity-type topics --entity-name topic-with-rf3 --alter --add-config retention.ms=432000000
+ ```
+
+2. Проверьте изменения:
+ ```
+ kafka-topics.sh --bootstrap-server localhost:9092 --topic topic-with-rf3 --describe
+ ```
+
+3. Нам также понадобилось изменить для брокера "1" количество потоков, чистящих логи. Установим новое значение `log.cleaner.threads=2`:
+ ```
+ kafka-configs.sh --bootstrap-server localhost:9092 --entity-type brokers --entity-name 1 --alter --add-config log.cleaner.threads=2
+ ```
+
+
+Copyright©Sergejs Andrejevs
+  </xmp>
+  <script src="strapdown/strapdown.min.js"></script>
+</html>
+<!--
+Local Variables:
+mode: markdown
+End:
+->
