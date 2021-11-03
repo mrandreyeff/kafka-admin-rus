@@ -100,6 +100,66 @@
  kafka-configs.sh --bootstrap-server localhost:9092 --entity-type brokers --entity-name 1 --alter --add-config log.cleaner.threads=2
  ```
 
+# Пример использования kafka-run-class.sh
+
+ Хотя многие скрипты Кафки используют внутри себя именно этот класс, в некоторых ситуациях может понадобится вызвать в явном виде некоторый класс с нестандартной конфигурацией.
+
+ Например, нам нужно вызвать класс kafka.tools.GetOffsetShell чтобы получить смещения в партициях темы:
+ ```
+ kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list :9092 --topic topic-with-rf3
+ ```
+ Получаем результат в формате - топик:партиция:максимальное смещение:
+ ```
+ topic-with-rf3:0:2
+ topic-with-rf3:1:0
+ ```
+
+# Создание нагрузки на кластер
+
+1. Воспользуемся встроенными утилитами `kafka-producer-perf-test.sh` и `kafka-consumer-perf-test.sh`. Запустите производителя:
+ ```
+ kafka-producer-perf-test.sh --topic my-perf --num-records 10000000 --throughput 10000 --producer-props bootstrap.server=localhost:9092 --record-size 10
+ ```
+
+2. Запустите потребителя
+ ```
+ kafka-consumer-perf-test.sh --bootstrap-server localhost:9092 --group perf-cg --topic my-perf --messages 100000 --print-metrics
+ ```
+
+3. Попробуйте kafka-verifiable-producer для того, чтобы посмотреть как оправляются и подтверждаются сообщения:
+ ```
+ kafka-verifiable-producer.sh --bootstrap-server localhost:9092 --max-messages 10000 --topic mytest1 --acks -1
+ ```
+4. Потребите сообщения:
+ ```
+ kafka-verifiable-consumer.sh --bootstrap-server localhost:9092 --topic mytest1 --group-id verifiable-test-cg
+ ```
+ 
+# Инициировать выбор предпочитаемого лидера
+
+ Если в какой-то момент один из брокеров выходил из строя, а потом вернулся, вероятно на нём отсутствуют лидеры партиций (поскольку они были перенесены на другие брокера). Чтобы это исправить, можно запустить kafka-leader-election скрипт:
+ ```
+ kafka-leader-election.sh --bootstrap-server localhost:9092 --all-topic-partitions --election-type PREFERRED
+ ```
+
+# Просмотр директорий с данными тем на брокерах
+
+ Воспользуйтесь утилитой `kafka-log-dirs` для интересующей Вас темы:
+ ```
+ kafka-log-dirs.sh --bootstrap-server localhost:9092 --describe --topic-list mytest1
+ ```
+
+# Утилита для дебага данных в кафке
+
+1. В случае возникновения проблем с файлами с данными, можно воспользоваться утилитой kafka-dump-log.sh:
+ ```
+ kafka-dump-log.sh --files /tmp/kafka-logs/topic-with-rf3-0/*.log --print-data-log
+ ```
+
+2. Для внутренних топиков, нужно использовать специальные флаги. Например, для `__consumer_offsets`:
+ ```
+ kafka-dump-log.sh --files /tmp/kafka-logs/__consumer_offsets-0/*.log --print-data-log --offsets-decoder
+ ```
 
 Copyright©Sergejs Andrejevs
   </xmp>
