@@ -94,6 +94,11 @@
  ```
  kafka-topics.sh --bootstrap-server localhost:9092 --topic topic-with-rf3 --describe
  ```
+ Также более углублённое описание конфигурации топиков (вместе с наследованием параметров от брокера или настроек внутри самой кафки) можно получить:
+ ```
+ kafka-configs.sh --bootstrap-server localhost:9092 --entity-type topics --entity-name topic-with-rf3 --describe
+ kafka-configs.sh --bootstrap-server localhost:9092 --entity-type topics --entity-name topic-with-rf3 --describe --all 
+ ```
 
 3. Нам также понадобилось изменить для брокера "1" количество потоков, чистящих логи. Установим новое значение `log.cleaner.threads=2`:
  ```
