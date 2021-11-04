@@ -64,7 +64,7 @@
 
 6. Чтобы посмотреть предполагаемые изменения, запустите команду с флагом `--verify`:
  ```
- kafka-reassign-partitions.sh --bootstrap-server 127.0.0.1:9092 --reassignment-json-file topics-reassignment-plan.json --throttle 50000000 --replica-alter-log-dirs-throttle 50000000 --verify
+ kafka-reassign-partitions.sh --bootstrap-server 127.0.0.1:9092 --reassignment-json-file topics-reassignment-plan.json --verify
  ```
 
 7. Для применения изменений запустите команду с флагом `--execute`. Важно: для продукционных сред и крупных партиций обязательно используйте ограничение в скорости передачи.
@@ -118,7 +118,7 @@
 
 1. Воспользуемся встроенными утилитами `kafka-producer-perf-test.sh` и `kafka-consumer-perf-test.sh`. Запустите производителя:
  ```
- kafka-producer-perf-test.sh --topic my-perf --num-records 10000000 --throughput 10000 --producer-props bootstrap.server=localhost:9092 --record-size 10
+ kafka-producer-perf-test.sh --topic my-perf --num-records 10000000 --throughput 10000 --producer-props bootstrap.servers=localhost:9092 --record-size 10
  ```
 
 2. Запустите потребителя
